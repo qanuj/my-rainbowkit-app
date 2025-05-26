@@ -2,8 +2,56 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import styles from '../styles/Home.module.css';
+import { useEffect, useState } from 'react';
+
+import { createPublicClient, http, formatEther } from 'viem'
+import { avalanche } from 'viem/chains'
+import { wagmiAbi } from '../abi/token';
+import { useAccount } from 'wagmi';
 
 const Home: NextPage = () => {
+
+  const [balance, setBalance] = useState<number>();
+  const { address, chainId, isConnected } = useAccount();
+  const [formattedBalance, setFormattedBalance] = useState<string>();
+
+  useEffect(() => {
+    const client = createPublicClient({
+      chain: avalanche,
+      transport: http(),
+    });
+
+    const fetchBalance = async () => {
+      try {
+        const bal = await client.readContract({
+          address: '0x8125713bd45f8b5E807d9899Afaa214D5e96453C', // Replace with your contract address
+          abi: wagmiAbi,
+          functionName: 'balanceOf',
+          args: [address], // Replace with the address you want to check
+        })
+        
+        console.log('Balance:', bal);
+        if (!bal) {
+          // Handle case where balance is null or undefined
+        } else {
+          setBalance(bal as number);
+          setFormattedBalance(formatEther(bal as bigint));
+        }
+      } catch (error) {
+        console.error('Error fetching balance:', error);
+      }
+    };
+
+    if(address && isConnected) {
+      fetchBalance();
+    }
+    if(!isConnected) {
+      setBalance(undefined);
+      setFormattedBalance(undefined);
+    }
+
+  }, [isConnected, address, chainId]);
+
   return (
     <div className={styles.container}>
       <Head>
@@ -17,66 +65,26 @@ const Home: NextPage = () => {
 
       <main className={styles.main}>
         <ConnectButton />
+        {isConnected && balance && balance > 0 && (
+          <h2>Welcome to Dashboard</h2>
+        )}
+        {isConnected && balance && (
+          <h2>
+            Your Balance: {formattedBalance} Token
+          </h2>
+        )}
+        {!isConnected && <h2>Please connect your wallet</h2>}
 
-        <h1 className={styles.title}>
-          Welcome to <a href="https://www.rainbowkit.com">RainbowKit</a> +{' '}
-          <a href="https://wagmi.sh">wagmi</a> +{' '}
-          <a href="https://nextjs.org">Next.js!</a>
-        </h1>
+        {isConnected && !balance && (
+          <h2>
+            Access Denied. You need at least 1 token to proceed.
+          </h2>
+        )}
 
-        <p className={styles.description}>
-          Get started by editing{' '}
-          <code className={styles.code}>pages/index.tsx</code>
-        </p>
-
-        <div className={styles.grid}>
-          <a className={styles.card} href="https://rainbowkit.com">
-            <h2>RainbowKit Documentation &rarr;</h2>
-            <p>Learn how to customize your wallet connection flow.</p>
-          </a>
-
-          <a className={styles.card} href="https://wagmi.sh">
-            <h2>wagmi Documentation &rarr;</h2>
-            <p>Learn how to interact with Ethereum.</p>
-          </a>
-
-          <a
-            className={styles.card}
-            href="https://github.com/rainbow-me/rainbowkit/tree/main/examples"
-          >
-            <h2>RainbowKit Examples &rarr;</h2>
-            <p>Discover boilerplate example RainbowKit projects.</p>
-          </a>
-
-          <a className={styles.card} href="https://nextjs.org/docs">
-            <h2>Next.js Documentation &rarr;</h2>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
-
-          <a
-            className={styles.card}
-            href="https://github.com/vercel/next.js/tree/canary/examples"
-          >
-            <h2>Next.js Examples &rarr;</h2>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
-
-          <a
-            className={styles.card}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          >
-            <h2>Deploy &rarr;</h2>
-            <p>
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
-        </div>
       </main>
 
       <footer className={styles.footer}>
-        <a href="https://rainbow.me" rel="noopener noreferrer" target="_blank">
-          Made with ❤️ by your frens at 🌈
-        </a>
+
       </footer>
     </div>
   );
